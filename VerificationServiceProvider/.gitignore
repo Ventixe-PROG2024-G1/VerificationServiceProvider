@@ -1,0 +1,13 @@
+﻿# Ignorera Visual Studio-mappen
+.vs/
+
+# Ignorera mdf- och ldf-databasfiler
+*.mdf
+*.ldf
+
+# Ignorera byggfiler
+bin/
+obj/
+
+# Ignorera appsettings.json
+appsettings.json
