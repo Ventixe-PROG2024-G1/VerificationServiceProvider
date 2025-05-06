@@ -7,9 +7,9 @@ namespace VerificationServiceProvider.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class VerificationController(IVerificationService verificationService) : ControllerBase
+    public class VerificationController(VerificationService verificationService) : ControllerBase
     {
-        private readonly IVerificationService _verificationService = verificationService;
+        private readonly VerificationService _verificationService = verificationService;
 
         [HttpPost("send")]
         public async Task<IActionResult> Send(SendVerificationCodeRequest request)

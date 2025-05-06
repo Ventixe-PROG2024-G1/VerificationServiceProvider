@@ -1,0 +1,21 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "VerificationServiceProvider.Services";
+
+package emailcontract;
+
+service EmailContract { 
+  rpc SendEmail (EmailMessageRequest) returns (EmailResponse);
+}
+
+message EmailMessageRequest {
+  repeated string recipients = 1;
+  string subject = 2;
+  string plain_text = 3;
+  string html = 4;
+}
+
+message EmailResponse {
+  bool succeeded = 1;
+  string error = 2;
+}
