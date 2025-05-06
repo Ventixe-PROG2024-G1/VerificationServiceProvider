@@ -7,21 +7,13 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace VerificationServiceProvider.Services
 {
-    public interface IVerificationService
-    {
-        Task<VerificationServiceResult> SendVerificationCodeAsync(SendVerificationCodeRequest request);
-
-        void SaveVerificationCodeAsync(SaveVerificationCodeRequest request);
-
-        VerificationServiceResult VerifyVerificationCode(VerifyVerificationCodeRequest request);
-    }
-
-    public class VerificationService(IConfiguration configuration, EmailClient emailClient, IMemoryCache cache) : IVerificationService
+    public class VerificationService(IConfiguration configuration, IMemoryCache cache, EmailContract.EmailContractClient emailServiceClient)
     {
         private readonly IConfiguration _configuration = configuration;
-        private readonly EmailClient _emailClient = emailClient;
+
         private readonly IMemoryCache _cache = cache;
         private static readonly Random _random = new();
+        private readonly EmailContract.EmailContractClient _emailServiceClient = emailServiceClient;
 
         public async Task<VerificationServiceResult> SendVerificationCodeAsync(SendVerificationCodeRequest request)
         {
@@ -60,20 +52,24 @@ namespace VerificationServiceProvider.Services
                 </body>
                 </html>";
 
-                var emailMessage = new EmailMessage(
-                    senderAddress: _configuration["ACS:SenderAddress"],
-                    recipients: new EmailRecipients([new(request.Email)]),
-                    content: new EmailContent(subject)
-                    {
-                        PlainText = plainTextContent,
-                        Html = htmlContent
-                    });
+                var emailRequest = new EmailMessageRequest
+                {
+                    Recipients = { request.Email },
+                    Subject = subject,
+                    PlainText = plainTextContent,
+                    Html = htmlContent
+                };
 
-                var emailSendOperation = await _emailClient.SendAsync(WaitUntil.Started, emailMessage);
+                var response = await _emailServiceClient.SendEmailAsync(emailRequest);
 
-                SaveVerificationCodeAsync(new SaveVerificationCodeRequest { Email = request.Email, Code = verificationCode, ValidFor = TimeSpan.FromMinutes(5) });
+                if (response.Succeeded)
+                {
+                    SaveVerificationCode(new SaveVerificationCodeRequest { Email = request.Email, Code = verificationCode, ValidFor = TimeSpan.FromMinutes(5) });
+                }
 
-                return new VerificationServiceResult { Succeeded = true, Message = " Verification email sent successfully" };
+                return response.Succeeded
+                    ? new VerificationServiceResult { Succeeded = true }
+                    : new VerificationServiceResult { Succeeded = false, Message = "Unable to send verification code" };
             }
             catch (Exception ex)
             {
@@ -81,7 +77,7 @@ namespace VerificationServiceProvider.Services
             }
         }
 
-        public void SaveVerificationCodeAsync(SaveVerificationCodeRequest request)
+        public void SaveVerificationCode(SaveVerificationCodeRequest request)
         {
             _cache.Set(request.Email.ToLowerInvariant(), request.Code, request.ValidFor);
         }
