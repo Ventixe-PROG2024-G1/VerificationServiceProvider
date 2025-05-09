@@ -1,0 +1,23 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "VerificationServiceProvider.Services";
+
+service VerificationContract {
+    rpc SendVerificationCode(SendVerificationCodeRequest) returns (VerificationResponse);
+    rpc VerifyVerificationCode(VerifyVerificationCodeRequest) returns (VerificationResponse);
+}
+
+message SendVerificationCodeRequest {
+    string email = 1;
+}
+
+message VerifyVerificationCodeRequest {
+    string email = 1;
+    string code = 2;
+}
+
+message VerificationResponse {
+    bool succeeded = 1;
+    string message = 2;
+    string error = 3;
+}
