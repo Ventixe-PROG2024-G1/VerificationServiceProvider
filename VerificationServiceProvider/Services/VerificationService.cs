@@ -1,13 +1,19 @@
-﻿using Azure;
-using Azure.Communication.Email;
+﻿using Grpc.Core;
 using Microsoft.Extensions.Caching.Memory;
-using System.Drawing;
 using VerificationServiceProvider.Models;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace VerificationServiceProvider.Services
 {
-    public class VerificationService(IConfiguration configuration, IMemoryCache cache, EmailContract.EmailContractClient emailServiceClient)
+    public interface IVerificationService
+    {
+        void SaveVerificationCode(SaveVerificationCodeRequest request);
+
+        Task<VerificationResponse> SendVerificationCode(SendVerificationCodeRequest request, ServerCallContext context);
+
+        Task<VerificationResponse> VerifyVerificationCode(VerifyVerificationCodeRequest request, ServerCallContext context);
+    }
+
+    public class VerificationService(IConfiguration configuration, IMemoryCache cache, EmailContract.EmailContractClient emailServiceClient) : VerificationContract.VerificationContractBase, IVerificationService
     {
         private readonly IConfiguration _configuration = configuration;
 
@@ -15,13 +21,13 @@ namespace VerificationServiceProvider.Services
         private static readonly Random _random = new();
         private readonly EmailContract.EmailContractClient _emailServiceClient = emailServiceClient;
 
-        public async Task<VerificationServiceResult> SendVerificationCodeAsync(SendVerificationCodeRequest request)
+        public override async Task<VerificationResponse> SendVerificationCode(SendVerificationCodeRequest request, ServerCallContext context)
         {
             try
             {
                 if (request == null || string.IsNullOrWhiteSpace(request.Email))
                 {
-                    return new VerificationServiceResult { Succeeded = false, Error = "Recipient email address is required" };
+                    return new VerificationResponse { Succeeded = false, Error = "Recipient email address is required" };
                 }
 
                 var verificationCode = _random.Next(100000, 999999).ToString();
@@ -68,12 +74,12 @@ namespace VerificationServiceProvider.Services
                 }
 
                 return response.Succeeded
-                    ? new VerificationServiceResult { Succeeded = true }
-                    : new VerificationServiceResult { Succeeded = false, Message = "Unable to send verification code" };
+                    ? new VerificationResponse { Succeeded = true }
+                    : new VerificationResponse { Succeeded = false, Message = "Unable to send verification code" };
             }
             catch (Exception ex)
             {
-                return new VerificationServiceResult { Succeeded = false, Error = ex.Message };
+                return new VerificationResponse { Succeeded = false, Error = ex.Message };
             }
         }
 
@@ -82,7 +88,7 @@ namespace VerificationServiceProvider.Services
             _cache.Set(request.Email.ToLowerInvariant(), request.Code, request.ValidFor);
         }
 
-        public VerificationServiceResult VerifyVerificationCode(VerifyVerificationCodeRequest request)
+        public override async Task<VerificationResponse> VerifyVerificationCode(VerifyVerificationCodeRequest request, ServerCallContext context)
         {
             var key = request.Email.ToLowerInvariant();
 
@@ -92,11 +98,11 @@ namespace VerificationServiceProvider.Services
                 if (storedCode == request.Code)
                 {
                     _cache.Remove(key);
-                    return new VerificationServiceResult { Succeeded = true, Message = "Verification successful." };
+                    return new VerificationResponse { Succeeded = true, Message = "Verification successful." };
                 }
             }
 
-            return new VerificationServiceResult { Succeeded = false, Error = "Invalid or expired verification code." };
+            return new VerificationResponse { Succeeded = false, Error = "Invalid or expired verification code." };
         }
     }
 }
