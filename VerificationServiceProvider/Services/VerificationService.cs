@@ -1,33 +1,36 @@
-﻿using Grpc.Core;
+﻿using Azure.Messaging.ServiceBus;
+using Grpc.Core;
 using Microsoft.Extensions.Caching.Memory;
+using Newtonsoft.Json;
 using VerificationServiceProvider.Models;
 
 namespace VerificationServiceProvider.Services
 {
-    public interface IVerificationService
+    public class VerificationService : VerificationContract.VerificationContractBase
     {
-        void SaveVerificationCode(SaveVerificationCodeRequest request);
-
-        Task<VerificationResponse> SendVerificationCode(SendVerificationCodeRequest request, ServerCallContext context);
-
-        Task<VerificationResponse> VerifyVerificationCode(VerifyVerificationCodeRequest request, ServerCallContext context);
-    }
-
-    public class VerificationService(IConfiguration configuration, IMemoryCache cache, EmailContract.EmailContractClient emailServiceClient) : VerificationContract.VerificationContractBase, IVerificationService
-    {
-        private readonly IConfiguration _configuration = configuration;
-
-        private readonly IMemoryCache _cache = cache;
+        private readonly IConfiguration _configuration;
+        private readonly IMemoryCache _cache;
+        private readonly ServiceBusClient _serviceBus;
+        private readonly ServiceBusSender _sender;
         private static readonly Random _random = new();
-        private readonly EmailContract.EmailContractClient _emailServiceClient = emailServiceClient;
+        //private readonly EmailContract.EmailContractClient _emailServiceClient = emailServiceClient;
 
-        public override async Task<VerificationResponse> SendVerificationCode(SendVerificationCodeRequest request, ServerCallContext context)
+        public VerificationService(IConfiguration configuration, IMemoryCache cache, ServiceBusClient serviceBus)
+        {
+            _configuration = configuration;
+            _cache = cache;
+            _serviceBus = serviceBus;
+
+            _sender = _serviceBus.CreateSender(_configuration["ASB:QueueName"]);
+        }
+
+        public async Task<VerificationResponseRest> SendVerificationCode(SendVerificationCodeRequestRest request)
         {
             try
             {
                 if (request == null || string.IsNullOrWhiteSpace(request.Email))
                 {
-                    return new VerificationResponse { Succeeded = false, Error = "Recipient email address is required" };
+                    return new VerificationResponseRest { Succeeded = false, Error = "Recipient email address is required" };
                 }
 
                 var verificationCode = _random.Next(100000, 999999).ToString();
@@ -66,20 +69,30 @@ namespace VerificationServiceProvider.Services
                     Html = htmlContent
                 };
 
-                var response = await _emailServiceClient.SendEmailAsync(emailRequest);
-
-                if (response.Succeeded)
+                var message = new ServiceBusMessage(JsonConvert.SerializeObject(emailRequest))
                 {
-                    SaveVerificationCode(new SaveVerificationCodeRequest { Email = request.Email, Code = verificationCode, ValidFor = TimeSpan.FromMinutes(5) });
-                }
+                    ContentType = "application/json"
+                };
 
-                return response.Succeeded
-                    ? new VerificationResponse { Succeeded = true }
-                    : new VerificationResponse { Succeeded = false, Message = "Unable to send verification code" };
+                SaveVerificationCode(new SaveVerificationCodeRequest { Email = request.Email, Code = verificationCode, ValidFor = TimeSpan.FromMinutes(5) });
+
+                await _sender.SendMessageAsync(message);
+                return new VerificationResponseRest { Succeeded = true };
+
+                //var response = await _emailServiceClient.SendEmailAsync(emailRequest);
+
+                //if (response.Succeeded)
+                //{
+                //    SaveVerificationCode(new SaveVerificationCodeRequest { Email = request.Email, Code = verificationCode, ValidFor = TimeSpan.FromMinutes(5) });
+                //}
+
+                //return response.Succeeded
+                //    ? new VerificationResponseRest { Succeeded = true }
+                //    : new VerificationResponseRest { Succeeded = false, Message = "Unable to send verification code" };
             }
             catch (Exception ex)
             {
-                return new VerificationResponse { Succeeded = false, Error = ex.Message };
+                return new VerificationResponseRest { Succeeded = false, Error = ex.Message };
             }
         }
 
@@ -88,7 +101,7 @@ namespace VerificationServiceProvider.Services
             _cache.Set(request.Email.ToLowerInvariant(), request.Code, request.ValidFor);
         }
 
-        public override async Task<VerificationResponse> VerifyVerificationCode(VerifyVerificationCodeRequest request, ServerCallContext context)
+        public VerificationResponseRest VerifyVerificationCode(VerifyVerificationCodeRequestRest request)
         {
             var key = request.Email.ToLowerInvariant();
 
@@ -98,11 +111,11 @@ namespace VerificationServiceProvider.Services
                 if (storedCode == request.Code)
                 {
                     _cache.Remove(key);
-                    return new VerificationResponse { Succeeded = true, Message = "Verification successful." };
+                    return new VerificationResponseRest { Succeeded = true, Message = "Verification successful." };
                 }
             }
 
-            return new VerificationResponse { Succeeded = false, Error = "Invalid or expired verification code." };
+            return new VerificationResponseRest { Succeeded = false, Error = "Invalid or expired verification code." };
         }
     }
 }

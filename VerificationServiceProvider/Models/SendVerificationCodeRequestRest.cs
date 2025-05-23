@@ -2,7 +2,7 @@
 
 namespace VerificationServiceProvider.Models
 {
-    public class SendVerificationCodeRequest
+    public class SendVerificationCodeRequestRest
     {
         [Required]
         public string Email { get; set; } = null!;

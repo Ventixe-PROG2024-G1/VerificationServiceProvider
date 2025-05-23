@@ -1,4 +1,5 @@
 using Azure.Communication.Email;
+using Azure.Messaging.ServiceBus;
 using VerificationServiceProvider;
 using VerificationServiceProvider.Services;
 
@@ -11,11 +12,12 @@ builder.Services.AddGrpc();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(x => new EmailClient(builder.Configuration["ACS:ConnectionString"]));
 builder.Services.AddScoped<VerificationService>();
+builder.Services.AddSingleton(new ServiceBusClient(builder.Configuration["ASB:ConnectionString"]));
 
-builder.Services.AddGrpcClient<EmailContract.EmailContractClient>(x =>
-{
-    x.Address = new Uri(builder.Configuration["EmailServiceProvider"]!);
-});
+//builder.Services.AddGrpcClient<EmailContract.EmailContractClient>(x =>
+//{
+//    x.Address = new Uri(builder.Configuration["EmailServiceProvider"]!);
+//});
 
 var app = builder.Build();
 
