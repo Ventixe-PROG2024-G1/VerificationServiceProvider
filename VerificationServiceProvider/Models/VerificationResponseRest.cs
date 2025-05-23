@@ -1,6 +1,6 @@
 ﻿namespace VerificationServiceProvider.Models
 {
-    public class VerificationResponse
+    public class VerificationResponseRest
     {
         public bool Succeeded { get; set; }
 
