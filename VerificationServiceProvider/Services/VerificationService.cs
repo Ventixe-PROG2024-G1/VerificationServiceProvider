@@ -6,7 +6,7 @@ using VerificationServiceProvider.Models;
 
 namespace VerificationServiceProvider.Services
 {
-    public class VerificationService : VerificationContract.VerificationContractBase
+    public class VerificationService
     {
         private readonly IConfiguration _configuration;
         private readonly IMemoryCache _cache;
@@ -61,9 +61,9 @@ namespace VerificationServiceProvider.Services
                 </body>
                 </html>";
 
-                var emailRequest = new EmailMessageRequest
+                var emailRequest = new EmailMessageModel
                 {
-                    Recipients = { request.Email },
+                    Recipients = new List<string> { request.Email },
                     Subject = subject,
                     PlainText = plainTextContent,
                     Html = htmlContent

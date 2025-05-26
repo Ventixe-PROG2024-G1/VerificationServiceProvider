@@ -21,9 +21,9 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
-	<ItemGroup>
+	<!--<ItemGroup>
 		<Protobuf Include="Protos/email.proto" GrpcServices="Client" />
 		<Protobuf Include="Protos/verification.proto" GrpcServices="Server" />
-	</ItemGroup>
+	</ItemGroup>-->
 
 </Project>
