@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-builder.Services.AddGrpc();
+//builder.Services.AddGrpc();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(x => new EmailClient(builder.Configuration["ACS:ConnectionString"]));
 builder.Services.AddScoped<VerificationService>();
@@ -21,8 +21,8 @@ builder.Services.AddSingleton(new ServiceBusClient(builder.Configuration["ASB:Co
 
 var app = builder.Build();
 
-app.MapGrpcService<VerificationService>();
-app.MapGet("/", () => "VerificationServiceProvider is running.");
+//app.MapGrpcService<VerificationService>();
+//app.MapGet("/", () => "VerificationServiceProvider is running.");
 app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 
