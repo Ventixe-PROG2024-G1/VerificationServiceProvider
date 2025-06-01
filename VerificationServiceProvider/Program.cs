@@ -1,6 +1,7 @@
 using Azure.Communication.Email;
 using Azure.Messaging.ServiceBus;
 using VerificationServiceProvider;
+using VerificationServiceProvider.Middlewares;
 using VerificationServiceProvider.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,8 @@ app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 
 app.UseAuthentication();
+app.UseMiddleware<ApiKeyMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();
